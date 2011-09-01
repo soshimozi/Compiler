@@ -15,7 +15,7 @@ typedef struct {
 	int oper;	/* operator */
 	int nops;	/* number of operands */
 	struct nodeTypeTag *op[1]; /* operands (exandable) */
-} operNodeType;
+} oprNodeType;
 
 typedef struct nodeTypeTag {
 	nodeEnum type;		/* type of node */
