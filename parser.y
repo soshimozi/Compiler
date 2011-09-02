@@ -23,24 +23,21 @@ int sym[26];		/* symbol table */
 %error-verbose
 
 %union {
-	char *lexeme;
 	int iValue;	/* integer value */
 	char sIndex;	/* symbol table index */
 	nodeType *nPtr;	/* node pointer */
 };
 
+
 %token <iValue> INTEGER
-%token <lexeme> VARIABLE
-%token WHILE IF PRINT PROGRAM T_VAR T_COMMA T_SEMICOLON
-%token T_LBRACE T_RBRACE T_LBRACKET T_RBRACKET T_LPAREN T_RPAREN T_ASSIGN
-%token T_DOT
+%token <sIndex> VARIABLE
+%token WHILE IF PRINT PROGRAM VAR T_COMMA
 %nonassoc IFX
 %nonassoc ELSE
 
-
-%left GE LE EQ NE GT LT
-%left PLUS MINUS
-%left MUL DIV
+%left GE LE EQ NE '>' '<'
+%left '+' '-'
+%left '*' '/'
 %nonassoc UMINUS
 
 %type <nPtr> stmt expr stmt_list
@@ -48,25 +45,41 @@ int sym[26];		/* symbol table */
 %%
 
 program:
-	function { exit(0); }
+	PROGRAM ident ';'  var_decl statement_block { exit(0); }
 	;
-function:
-	function stmt	{ ex($2); freeNode($2); }
+
+var_decl:
+	/* empty */
+	|
+	VAR identlist ';'
+	;
+
+identlist:
+	ident
+	| ident T_COMMA identlist
+	;
+
+ident:
+	VARIABLE
+	;
+
+statement_block:
+	statement_block stmt
 	| /* NULL */
 	;
 
 stmt:
-	T_SEMICOLON			{ $$ = opr(';', 2, NULL, NULL); }
-	| expr T_SEMICOLON		{ $$= $1; }
-	| PRINT expr T_SEMICOLON	{ $$ = opr(PRINT, 1, $2); }
-	| VARIABLE T_ASSIGN expr T_SEMICOLON { $$ = NULL; /*opr('=', 2, id($1), $3);*/ }
-	| WHILE T_LPAREN expr T_RPAREN stmt 
+	';'			{ $$ = opr(';', 2, NULL, NULL); }
+	| expr ';'		{ $$= $1; }
+	| PRINT expr ';'	{ $$ = opr(PRINT, 1, $2); }
+	| VARIABLE '=' expr ';' { $$ = opr('=', 2, id($1), $3); }
+	| WHILE '(' expr ')' stmt 
 				{ $$ = opr(WHILE, 2, $3, $5); }
-	| IF T_LPAREN expr T_RPAREN stmt %prec IFX 
-				{ $$ = opr(IF, 2, $3, $5); }
-	| IF T_LPAREN expr T_RPAREN stmt ELSE stmt
-				{ $$ = opr(IF, 3, $3, $5, $7); }
-	| T_LBRACKET  stmt_list T_RBRACKET	{ $$ = $2; }
+	| IF '(' expr ')' stmt %prec IFX 
+				{ $$ = opr(IF, 2, $3, $5); printf("Processing If statement.\n"); }
+	| IF '(' expr ')' stmt ELSE stmt
+				{ $$ = opr(IF, 3, $3, $5, $7); printf("Processing if/else statement.\n"); }
+	| '{' stmt_list '}'	{ $$ = $2; }
 	;
 
 stmt_list:
@@ -76,19 +89,19 @@ stmt_list:
 
 expr:
 	INTEGER			{ $$ = con($1); }
-	| VARIABLE		{ $$ = NULL /* id($1);*/ }
-	| MINUS expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
-	| expr PLUS expr		{ $$ = opr('+', 2, $1, $3); }
-	| expr MINUS expr		{ $$ = opr('-', 2, $1, $3); }
-	| expr MUL expr		{ $$ = opr('*', 2, $1, $3); }
-	| expr DIV expr		{ $$ = opr('/', 2, $1, $3); }
-	| expr LT  expr		{ $$ = opr('<', 2, $1, $3); }
-	| expr GT expr		{ $$ = opr('>', 2, $1, $3); }
+	| VARIABLE		{ $$ = id($1); }
+	| '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
+	| expr '+' expr		{ $$ = opr('+', 2, $1, $3); }
+	| expr '-' expr		{ $$ = opr('-', 2, $1, $3); }
+	| expr '*' expr		{ $$ = opr('*', 2, $1, $3); }
+	| expr '/' expr		{ $$ = opr('/', 2, $1, $3); }
+	| expr '<' expr		{ $$ = opr('<', 2, $1, $3); }
+	| expr '>' expr		{ $$ = opr('>', 2, $1, $3); }
 	| expr GE expr		{ $$ = opr(GE, 2, $1, $3); }
 	| expr LE expr		{ $$ = opr(LE, 2, $1, $3); }
 	| expr NE expr		{ $$ = opr(NE, 2, $1, $3); }
 	| expr EQ expr		{ $$ = opr(EQ, 2, $1, $3); }
-	| T_LPAREN  expr T_RPAREN		{ $$ = $2; }
+	| '(' expr ')'		{ $$ = $2; }
 	;
 %%
 
