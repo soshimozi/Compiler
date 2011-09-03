@@ -7,21 +7,18 @@ CFLAGS=-ggdb
 LIBS=
 PARSER=parser
 SCANNER=scanner
-OBJS=$(SCANNER).o $(PARSER).o ast.o symbol_table.o base.o
+OBJS=$(SCANNER).o $(PARSER).o ast.o base.o
 PROGRAM=compiler
 
 all: $(OBJS)
 	$(CC) $(LIBS) $(OBJS) -o $(PROGRAM)
 
-symbol_table.o: symbol_table.c symbol_table.h
-	$(CC) $(CFLAGS) symbol_table.c -c
-
-base.o: base.c base.h
-	$(CC) $(CFLAGS) base.c -c
-
 ast.o: ast.c ast.h
 	$(CC) $(CFLAGS) ast.c -c
 	
+base.o: base.c base.h
+	$(CC) $(CFLAGS) base.c -c
+
 $(PARSER).o: $(PARSER).c $(PARSER).h
 	$(CC) $(CFLAGS) $(PARSER).c -c
 

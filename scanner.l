@@ -26,10 +26,10 @@ void yyerror(char *);
 "var"		return VAR;
 "int"		return TYPE_INT;
 "char"		return TYPE_CHAR;
-[0-9]+                      { return INTEGER;
-                            }
-[A-Za-z][A-Za-z0-9_]*       { /*uploc; yylval->lexeme=strdup(yytext);*/
+[A-Za-z]			       	{ /*uploc; yylval->lexeme=strdup(yytext);*/
                               return IDENTIFIER;
+                            }
+[0-9]+                      { return INTEGER;
                             }
 [ \t\n]+	; /* ignore whitespace */
 .		yyerror("Unknown characters");
