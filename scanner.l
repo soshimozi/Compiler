@@ -9,21 +9,6 @@ void yyerror(char *);
 
 %%
 
-[a-z]	{
-		yylval.sIndex = *yytext - 'a';
-		return VARIABLE;
-	}
-
-0	{
-		yylval.iValue = atoi(yytext);
-		return INTEGER;
-	}
-
-[1-9][0-9]* 	{
-			yylval.iValue = atoi(yytext);
-			return INTEGER;
-		}
-
 [-()<>=+*/;{}.] {
 		return *yytext;
 		}
@@ -39,6 +24,13 @@ void yyerror(char *);
 "program"	return PROGRAM;
 ","		return T_COMMA;
 "var"		return VAR;
+"int"		return TYPE_INT;
+"char"		return TYPE_CHAR;
+[0-9]+                      { return INTEGER;
+                            }
+[A-Za-z][A-Za-z0-9_]*       { /*uploc; yylval->lexeme=strdup(yytext);*/
+                              return IDENTIFIER;
+                            }
 [ \t\n]+	; /* ignore whitespace */
 .		yyerror("Unknown characters");
 

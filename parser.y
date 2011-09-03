@@ -30,7 +30,7 @@ int sym[26];		/* symbol table */
 
 
 %token <iValue> INTEGER
-%token <sIndex> VARIABLE
+%token <sIndex> IDENTIFIER
 %token WHILE IF PRINT PROGRAM VAR T_COMMA
 %nonassoc IFX
 %nonassoc ELSE
@@ -51,7 +51,7 @@ program:
 var_decl:
 	/* empty */
 	|
-	VAR identlist ';'
+	type identlist ';'
 	;
 
 identlist:
@@ -60,19 +60,21 @@ identlist:
 	;
 
 ident:
-	VARIABLE
+	IDENTIFIER
 	;
 
 statement_block:
 	statement_block stmt
 	| /* NULL */
 	;
-
+type:
+	TYPE_INT | TYPE_CHAR;
+	
 stmt:
 	';'			{ $$ = opr(';', 2, NULL, NULL); }
 	| expr ';'		{ $$= $1; }
 	| PRINT expr ';'	{ $$ = opr(PRINT, 1, $2); }
-	| VARIABLE '=' expr ';' { $$ = opr('=', 2, id($1), $3); }
+	| IDENTIFIER '=' expr ';' { $$ = opr('=', 2, id($1), $3); }
 	| WHILE '(' expr ')' stmt 
 				{ $$ = opr(WHILE, 2, $3, $5); }
 	| IF '(' expr ')' stmt %prec IFX 
@@ -89,7 +91,7 @@ stmt_list:
 
 expr:
 	INTEGER			{ $$ = con($1); }
-	| VARIABLE		{ $$ = id($1); }
+	| IDENTIFIER		{ $$ = id($1); }
 	| '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
 	| expr '+' expr		{ $$ = opr('+', 2, $1, $3); }
 	| expr '-' expr		{ $$ = opr('-', 2, $1, $3); }
