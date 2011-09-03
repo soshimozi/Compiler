@@ -23,15 +23,17 @@ int sym[26];		/* symbol table */
 %error-verbose
 
 %union {
-	int iValue;	/* integer value */
-	char sIndex;	/* symbol table index */
-	nodeType *nPtr;	/* node pointer */
+	int iValue;	
+	char sIndex;
+	nodeType *nPtr;
 };
 
 
 %token <iValue> INTEGER
 %token <sIndex> IDENTIFIER
+%type <nPtr> stmt expr stmt_list
 %token WHILE IF PRINT PROGRAM VAR T_COMMA
+%token TYPE_INT TYPE_CHAR
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -40,7 +42,6 @@ int sym[26];		/* symbol table */
 %left '*' '/'
 %nonassoc UMINUS
 
-%type <nPtr> stmt expr stmt_list
 
 %%
 
@@ -67,8 +68,11 @@ statement_block:
 	statement_block stmt
 	| /* NULL */
 	;
+	
 type:
-	TYPE_INT | TYPE_CHAR;
+	TYPE_INT 
+	| TYPE_CHAR
+	;
 	
 stmt:
 	';'			{ $$ = opr(';', 2, NULL, NULL); }

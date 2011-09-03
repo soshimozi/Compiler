@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ast.h"
-#include "typecheck_visitor.h"
+//#include "typecheck_visitor.h"
 
 struct AstNode *
 ast_node_new(const char* name, int kind, int type,
@@ -115,6 +115,7 @@ ast_node_add_sibling(struct AstNode *self, struct AstNode *sibling)
     }
 }
 
+/*
 void
 ast_node_accept(struct AstNode *self, Visitor *visitor)
 {
@@ -248,4 +249,4 @@ ast_node_accept_children(struct AstNode *self, Visitor *visitor)
     for (temp = self; temp != NULL; temp = temp->sibling)
         ast_node_accept(temp, visitor);
 }
-
+*/
