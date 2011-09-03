@@ -29,10 +29,10 @@ int sym[26];		/* symbol table */
 };
 
 
-%token <iValue> INTEGER
+%token <iValue> INTVAL
 %token <sIndex> IDENTIFIER
 %type <nPtr> stmt expr stmt_list
-%token WHILE IF PRINT PROGRAM VAR T_COMMA
+%token WHILE IF PRINT T_PROGRAM VAR T_COMMA
 %token TYPE_INT TYPE_CHAR
 %nonassoc IFX
 %nonassoc ELSE
@@ -46,13 +46,13 @@ int sym[26];		/* symbol table */
 %%
 
 program:
-	PROGRAM ident ';'  var_decl statement_block { exit(0); }
+	T_PROGRAM ident ';'  var_decl statement_block { exit(0); }
 	;
 
 var_decl:
 	/* empty */
 	|
-	type identlist ';'
+	type identlist ';' var_decl
 	;
 
 identlist:
@@ -94,7 +94,7 @@ stmt_list:
 	;
 
 expr:
-	INTEGER			{ $$ = con($1); }
+	INTVAL			{ $$ = con($1); }
 	| IDENTIFIER		{ $$ = id($1); }
 	| '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
 	| expr '+' expr		{ $$ = opr('+', 2, $1, $3); }
