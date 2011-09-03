@@ -21,7 +21,7 @@ void yyerror(char *);
 "if"		return IF;
 "else"		return ELSE;
 "print"		return PRINT;
-"program"	return PROGRAM;
+"program"	return T_PROGRAM;
 ","		return T_COMMA;
 "var"		return VAR;
 "int"		return TYPE_INT;
@@ -29,7 +29,7 @@ void yyerror(char *);
 [A-Za-z]			       	{ /*uploc; yylval->lexeme=strdup(yytext);*/
                               return IDENTIFIER;
                             }
-[0-9]+                      { return INTEGER;
+[0-9]+                      { return INTVAL;
                             }
 [ \t\n]+	; /* ignore whitespace */
 .		yyerror("Unknown characters");
