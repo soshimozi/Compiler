@@ -1,191 +1,334 @@
 %{
+#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include "compiler.h"
+#include <string.h>
+#include <unistd.h>
+#include "base.h"
+#include "parser.h"
+#include "ast.h"
+#include "symbol_table.h"
 
-/* prototypes */
-nodeType *opr(int oper, int nops, ...);
-nodeType *id(int id);
-nodeType *con(int value);
+#include "typecheck_visitor.h"
+#include "graphprinter_visitor.h"
 
-void freeNode(nodeType *p);
 
-int ex(nodeType *p);
 
-int yylex(void);
+extern FILE *yyin;
 
-void yyerror(char *s);
-int sym[26];		/* symbol table */
+static void yyerror( const char *msg );
+
+static struct AstNode *ast;
 
 %}
 
+%defines
+%locations
+%pure-parser
 %error-verbose
 
 %union {
-	int iValue;	/* integer value */
-	char sIndex;	/* symbol table index */
-	nodeType *nPtr;	/* node pointer */
+	char* lexeme;
+	int integer;
+	int boolean;
+	char character;
+	int type;
+	struct AstNode *astnode;
 };
 
+%token <lexeme> IDENTIFIER
+%token <type> TYPE_IDENTIFIER
+%token <integer> INT_LITERAL
+%token <boolean> BOOL_LITERAL
+%token <character> CHAR_LITERAL
 
-%token <iValue> INTEGER
-%token <sIndex> IDENTIFIER
-%token WHILE IF PRINT PROGRAM VAR T_COMMA
+%token T_WHILE T_IF T_PROGRAM T_FUNCTION T_COLON T_PROC
+%token T_COMMA T_SEMICOLON T_LBRACE T_RBRACE T_LPAR T_RPAR
+%token T_DO T_DOT T_ASSIGN
 %nonassoc IFX
-%nonassoc ELSE
+%nonassoc T_ELSE
 
-%left GE LE EQ NE '>' '<'
-%left '+' '-'
-%left '*' '/'
+%left <lexeme> T_BITOR
+%left <lexeme> T_LOGICOR
+%left <lexeme> T_BITAND
+%left <lexeme> T_LOGICAND
+%left <lexeme> T_EQ T_NE
+%left <lexeme> T_LT T_GT T_LE T_GE
+%left <lexeme> T_PLUS T_MINUS
+%left <lexeme> T_STAR T_SLASH
 %nonassoc UMINUS
 
-%type <nPtr> stmt expr stmt_list
+%type <astnode> program
+%type <astnode> ident
+%type <astnode> program_decl
+%type <astnode> var_decl_list
+%type <astnode> multi_var_decl
+%type <astnode> var_decl
+%type <astnode> identlist
+%type <astnode> single_identifier
+%type <astnode> multi_identifier
+
+%type <astnode> proc_func_list
+%type <astnode> multi_proc_func_decl
+%type <astnode> proc_func_decl
+%type <astnode> func_decl
+%type <astnode> proc_decl
+
+%type <type> type
+
+%start program
 
 %%
 
 program:
-	PROGRAM ident ';'  var_decl statement_block { exit(0); }
+	program_decl var_decl_list proc_func_list statement_block
+	{
+		struct AstNode *ast_node;
+		ast_node = ast_node_new("Program", PROGRAM, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_child(ast_node, $1); // program_decl
+		ast_node_add_child(ast_node, $2); // var_decl_list
+		ast_node_add_child(ast_node, $3); // proc_func_list
+		$$ = ast_node;
+
+		ast = ast_node;
+		//ast_node_add_child(ast_node, $3); // statement_block
+	}
+	;
+
+var_decl_list:
+	/* empty */ { $$ = NULL; }
+	| multi_var_decl
+	{
+		struct AstNode *ast_node;
+		ast_node = ast_node_new("VarDeclList", VARDECL_LIST, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_child(ast_node, $1);
+		$$ = ast_node;
+	}
+	;
+
+multi_var_decl:
+	var_decl { $$ = $1; } 
+	| var_decl multi_var_decl
+	{
+		ast_node_add_sibling($1, $2);
+		$$ = $1;
+	}
 	;
 
 var_decl:
-	/* empty */
-	|
-	type identlist ';'
+	type identlist T_SEMICOLON
+	{
+	        struct AstNode *ast_node;
+        	ast_node = ast_node_new("VarDecl", VARDECL, $1,
+                                	yylloc.last_line, NULL);
+	        ast_node_add_child(ast_node, $2);
+	        $$ = ast_node;
+	}
 	;
 
+proc_func_list:
+	/* empty */ { $$ = NULL; }
+	| proc_func_decl multi_proc_func_decl
+	{
+		struct AstNode *ast_node;
+		ast_node = ast_node_new("ProcFuncList", PROCFUNC_LIST, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_sibling($1, $2);
+		ast_node_add_child(ast_node, $1);
+
+		$$ = ast_node;
+	}
+	;
+
+multi_proc_func_decl:
+	/* empty */ { $$ = NULL; }
+	| proc_func_decl multi_proc_func_decl
+	{
+		ast_node_add_sibling($1, $2);
+	}
+	;
+
+proc_func_decl:
+	proc_decl { $$ = $1; }
+	| func_decl { $$ = $1; }
+	;
+
+func_decl:
+	T_FUNCTION ident T_LPAR param_list T_RPAR T_COLON type T_LBRACE var_decl_list statement_block T_RBRACE
+	{	
+		Symbol *symtab;
+		struct AstNode *ast_node;
+		
+		ast_node = ast_node_new("FuncDecl", FUNCTION, VOID,
+					yylloc.last_line, NULL);
+	
+		ast_node_add_child(ast_node, $2);	// Identifier
+		//ast_node_add_child(ast_node, $4);	// ParamList
+		ast_node_add_child(ast_node, $8);	// VarDeclList
+		//ast_node_add_child(ast_node, $9);	// Statements
+
+		$2->symbol->type = $6;
+
+		ast_node->symbol = symbol_new(NULL);
+		
+		$$ = ast_node;	
+	}
+	;
+
+proc_decl:
+	T_PROC ident T_LPAR param_list T_RPAR T_LBRACE var_decl_list statement_block T_RBRACE
+	{
+		Symbol *symtab;
+		struct AstNode *ast_node;
+		
+		ast_node = ast_node_new("ProcDecl", PROCEDURE, VOID,
+					yylloc.last_line, NULL);
+	
+		ast_node_add_child(ast_node, $2);	// Identifier
+		//ast_node_add_child(ast_node, $4);	// ParamList
+		ast_node_add_child(ast_node, $6);	// VarDeclList
+		//ast_node_add_child(ast_node, $9);	// Statements
+
+		ast_node->symbol = symbol_new(NULL);
+		
+		$$ = ast_node;
+	}
+	;
+	
+program_decl:
+	T_PROGRAM ident T_SEMICOLON
+	{  
+		struct AstNode *ast_node;
+		
+		ast_node = ast_node_new("ProgramDecl", PROGRAM_DECL, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_child(ast_node, $2); /* identifier */
+		$$ = ast_node;
+	}
+	;
+
+param_list:
+	/* empty */ { $$ = NULL; }
+	
+
 identlist:
-	ident
-	| ident T_COMMA identlist
+	single_identifier multi_identifier
+	{
+		struct AstNode *ast_node;
+
+		ast_node = ast_node_new("IdentifierList", IDENT_LIST, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_sibling($1, $2);
+		ast_node_add_child(ast_node, $1);
+		$$ = ast_node;
+	}
+	;
+
+multi_identifier:
+	/* empty */ { $$ = NULL; }
+	| T_COMMA single_identifier multi_identifier
+	{
+		ast_node_add_sibling($2, $3);
+		$$ = $2;
+	}
+	;
+
+single_identifier:
+	ident { $$ = $1; }
 	;
 
 ident:
-	IDENTIFIER
+	IDENTIFIER 
+	{
+		struct AstNode *ast_node;
+	
+		ast_node = ast_node_new("Identifier", IDENTIFIER, VOID,	
+					yylloc.last_line, NULL);
+		ast_node->symbol = symbol_new($1);
+		// ast-node->symbol->decl_linenum = yylloc.last_line;
+		$$ = ast_node;	 
+	}
 	;
+
 
 statement_block:
 	statement_block stmt
-	| /* NULL */
+	|
+	/* empty */
 	;
-type:
-	TYPE_INT | TYPE_CHAR;
+	
+type:	TYPE_IDENTIFIER 
+	;
 	
 stmt:
-	';'			{ $$ = opr(';', 2, NULL, NULL); }
-	| expr ';'		{ $$= $1; }
-	| PRINT expr ';'	{ $$ = opr(PRINT, 1, $2); }
-	| IDENTIFIER '=' expr ';' { $$ = opr('=', 2, id($1), $3); }
-	| WHILE '(' expr ')' stmt 
-				{ $$ = opr(WHILE, 2, $3, $5); }
-	| IF '(' expr ')' stmt %prec IFX 
-				{ $$ = opr(IF, 2, $3, $5); printf("Processing If statement.\n"); }
-	| IF '(' expr ')' stmt ELSE stmt
-				{ $$ = opr(IF, 3, $3, $5, $7); printf("Processing if/else statement.\n"); }
-	| '{' stmt_list '}'	{ $$ = $2; }
+	T_SEMICOLON			{ }
+	| expr T_SEMICOLON		{ }
+	| IDENTIFIER T_ASSIGN expr T_SEMICOLON { }
+	| T_WHILE T_LPAR expr T_RPAR stmt 
+				{ }
+	| T_DO stmt T_WHILE T_LPAR expr T_RPAR T_SEMICOLON { }
+	| T_IF T_LPAR expr T_RPAR stmt %prec IFX 
+				{ }
+	| T_IF T_LPAR expr T_RPAR stmt T_ELSE stmt
+				{ }
+	| T_LBRACE stmt_list T_RBRACE	{ }
 	;
 
 stmt_list:
-	stmt	{ $$ = $1; }
-	| stmt_list stmt { $$ = opr(';', 2, $1, $2); }
+	stmt	{ }
+	| stmt_list stmt { }
 	;
 
 expr:
-	INTEGER			{ $$ = con($1); }
-	| IDENTIFIER		{ $$ = id($1); }
-	| '-' expr %prec UMINUS { $$ = opr(UMINUS, 1, $2); }
-	| expr '+' expr		{ $$ = opr('+', 2, $1, $3); }
-	| expr '-' expr		{ $$ = opr('-', 2, $1, $3); }
-	| expr '*' expr		{ $$ = opr('*', 2, $1, $3); }
-	| expr '/' expr		{ $$ = opr('/', 2, $1, $3); }
-	| expr '<' expr		{ $$ = opr('<', 2, $1, $3); }
-	| expr '>' expr		{ $$ = opr('>', 2, $1, $3); }
-	| expr GE expr		{ $$ = opr(GE, 2, $1, $3); }
-	| expr LE expr		{ $$ = opr(LE, 2, $1, $3); }
-	| expr NE expr		{ $$ = opr(NE, 2, $1, $3); }
-	| expr EQ expr		{ $$ = opr(EQ, 2, $1, $3); }
-	| '(' expr ')'		{ $$ = $2; }
+	INT_LITERAL		{ }
+	| CHAR_LITERAL 		{ }
+	| BOOL_LITERAL		{ }
+	| IDENTIFIER		{ }
+	| T_MINUS expr %prec UMINUS { }
+	| expr T_PLUS expr		{ }
+	| expr T_MINUS expr		{ }
+	| expr T_STAR expr		{ }
+	| expr T_SLASH expr		{ }
+	| expr T_LT expr		{ }
+	| expr T_GT expr		{ }
+	| expr T_GE expr		{ }
+	| expr T_LE expr		{ }
+	| expr T_NE expr		{ }
+	| expr T_EQ expr		{ }
+	| T_LPAR expr T_RPAR		{ }
 	;
 %%
 
-#define SIZEOF_NODETYPE ((char *)&p->con - (char *)p)
-
-nodeType *con(int value) {
-	nodeType *p;
-	size_t nodeSize;
-
-	/* allocate node */
-	nodeSize = SIZEOF_NODETYPE + sizeof(conNodeType);
-	if ((p = malloc(nodeSize)) == NULL)
-		yyerror("out of memory");
-
-	/* copy information */
-	p->type = typeCon;
-	p->con.value = value;
-
-	return p;
+static void yyerror(const char *msg)
+{
+	fprintf(stderr, "Error(%d): %s\n", yyget_lineno(),  msg);
 }
 
-nodeType *id(int i) {
-	nodeType *p;
-	size_t nodeSize;
+int main(int argc, char **argv)
+{
+	if (argc > 1)
+		yyin = fopen(argv[1], "r");
+	else
+		yyin = stdin;
 
-	/* allocate node */
-	nodeSize = SIZEOF_NODETYPE + sizeof(idNodeType);
-	if ((p = malloc(nodeSize)) == NULL)
-		yyerror("out of memory");
+	/*yylloc.first_line = yylloc.last_line = 1;
+	yylloc.first_column = yylloc.last_column = 0;*/
 
-	/* copy information */
-	p->type = typeId;
-	p->id.i = i;
+	yyparse();
 
-	return p;
-}
+	Visitor *visitor;
 
-
-nodeType *opr(int oper, int nops, ...) {
-	va_list ap;
-	nodeType *p;
-	size_t nodeSize;
-	int i;
-
-	/* allocate node */
-	nodeSize = SIZEOF_NODETYPE + sizeof(oprNodeType) +
-		(nops - 1) * sizeof(nodeType*);
-	if ((p = malloc(nodeSize)) == NULL)
-		yyerror("out of memory");
-
-	/* copy information */
-	p->type = typeOpr;
-	p->opr.oper = oper;
-	p->opr.nops = nops;
-	va_start(ap, nops);
-	for (i = 0; i < nops; i++)
-		p->opr.op[i] = va_arg(ap, nodeType*);
-	va_end(ap);
-	return p;
-}
-
-void freeNode(nodeType *p) {
-	int i;
-
-	if (!p) return;
-	if (p->type == typeOpr) {
-		for (i=0; i<p->opr.nops; i++)
-			freeNode(p->opr.op[i]);
+	visitor = typecheck_new();
+	ast_node_accept(ast, visitor);
+	
+	if(ast_node_check_errors(ast)) {
+		fprintf(stderr, "Too many errors to compile.\n");
 	}
 
-	free(p);
-}
+	visitor = graphprinter_new();
 
-void yyerror(char *s) {
-	fprintf(stderr, "%s\n", s);
-}
+	ast_node_accept(ast, visitor);
 
-int main(void) {
-	yyparse();
 	return 0;
-}
-
-int ex(nodeType *p) {
-	printf("ex called!\n");
 }

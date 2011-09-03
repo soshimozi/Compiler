@@ -1,6 +1,7 @@
 #ifndef AST_H
 #define AST_H
 
+#include "compiler.h"
 #include "base.h"
 #include "parser.h"
 #include "symbol_table.h"
