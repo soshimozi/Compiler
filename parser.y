@@ -73,6 +73,10 @@ static struct AstNode *ast;
 %type <astnode> func_decl
 %type <astnode> proc_decl
 
+%type <astnode> param_list
+%type <astnode> single_param
+%type <astnode> multi_param
+
 %type <type> type
 
 %start program
@@ -164,11 +168,11 @@ func_decl:
 					yylloc.last_line, NULL);
 	
 		ast_node_add_child(ast_node, $2);	// Identifier
-		//ast_node_add_child(ast_node, $4);	// ParamList
-		ast_node_add_child(ast_node, $8);	// VarDeclList
+		ast_node_add_child(ast_node, $4);	// ParamList
+		ast_node_add_child(ast_node, $9);	// VarDeclList
 		//ast_node_add_child(ast_node, $9);	// Statements
 
-		$2->symbol->type = $6;
+		$2->symbol->type = $7;
 
 		ast_node->symbol = symbol_new(NULL);
 		
@@ -187,7 +191,7 @@ proc_decl:
 	
 		ast_node_add_child(ast_node, $2);	// Identifier
 		//ast_node_add_child(ast_node, $4);	// ParamList
-		ast_node_add_child(ast_node, $6);	// VarDeclList
+		ast_node_add_child(ast_node, $7);	// VarDeclList
 		//ast_node_add_child(ast_node, $9);	// Statements
 
 		ast_node->symbol = symbol_new(NULL);
@@ -210,7 +214,37 @@ program_decl:
 
 param_list:
 	/* empty */ { $$ = NULL; }
+	| single_param multi_param
+	{
+		struct AstNode *ast_node;
+		ast_node = ast_node_new("ParamList", PARAM_LIST, VOID,
+					yylloc.last_line, NULL);
+		ast_node_add_sibling($1, $2);
+		ast_node_add_child(ast_node, $1);
+		$$ = ast_node;
+	}
+	;
+
+multi_param:
+	/* empty */ { $$ = NULL; }
+	| T_COMMA single_param multi_param
+	{
+		ast_node_add_sibling($2, $3);
+		$$ = $2;
+	}
+	;
 	
+
+single_param:
+	type ident
+	{
+		struct AstNode *ast_node;
+		ast_node = ast_node_new("Parameter", PARAMETER, $1,
+					yylloc.last_line, NULL);
+		ast_node_add_child(ast_node, $2);	// Identifier
+		$$ = ast_node;
+	}
+	;
 
 identlist:
 	single_identifier multi_identifier
