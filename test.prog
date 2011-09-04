@@ -1,0 +1,20 @@
+program testme;
+
+int motor_speed, last_command_time, current_time;
+bool motor_running;
+
+function abc() : int
+{
+int a, b, c;
+char x, y, z;
+	
+}
+
+
+if( motor_index < 0 )
+{
+	motor_index = 0;		
+}
+
+motor_running = true;
+
