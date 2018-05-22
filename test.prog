@@ -1,0 +1,21 @@
+program testme;
+
+int motor_speed, last_command_time, current_time;
+bool motor_running;
+
+proc start_motor(int motor_index)
+{
+	int signal_port, motor_index_port;
+
+	signal_port = 23;
+	motor_index_port = motor_index;
+}
+
+
+if( motor_index < 0 )
+{
+	motor_index = 0;		
+}
+
+motor_running = true;
+

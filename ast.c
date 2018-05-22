@@ -115,7 +115,7 @@ ast_node_add_sibling(struct AstNode *self, struct AstNode *sibling)
     }
 }
 
-/*
+
 void
 ast_node_accept(struct AstNode *self, Visitor *visitor)
 {
@@ -215,24 +215,23 @@ ast_node_accept(struct AstNode *self, Visitor *visitor)
             break;
         case T_PLUS:
         case T_MINUS:
-        case T_OR:
+        case T_LOGICOR:
+	case T_BITOR:
             visit = visitor->visit_add_op;
             break;
         case T_STAR:
         case T_SLASH:
-        case T_AND:
+        case T_LOGICAND:
+	case T_BITAND:
             visit = visitor->visit_mul_op;
             break;
-        case T_EQUAL:
-        case T_NOTEQUAL:
-        case T_LESSER:
-        case T_GREATER:
-        case T_LESSEREQUAL:
-        case T_GREATEREQUAL:
+        case T_EQ:
+        case T_NE:
+        case T_LT:
+        case T_GT:
+        case T_LE:
+        case T_GE:
             visit = visitor->visit_rel_op;
-            break;
-        case T_NOT:
-            visit = visitor->visit_not_op;
             break;
         default:
             visit = NULL;
@@ -249,4 +248,4 @@ ast_node_accept_children(struct AstNode *self, Visitor *visitor)
     for (temp = self; temp != NULL; temp = temp->sibling)
         ast_node_accept(temp, visitor);
 }
-*/
+
