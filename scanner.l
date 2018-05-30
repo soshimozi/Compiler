@@ -18,10 +18,13 @@
 
 %%
 
-"/*"			{ uploc; BEGIN( COMMENT ); }
-<COMMENT>"*"+"/"	{ uploc; BEGIN( INITIAL ); }
-<COMMENT>"*"+[^*/]*	{ uploc; }
-	
+"/*"         { uploc; BEGIN(COMMENT); } 
+     
+<COMMENT>[^*\n]*        { uploc; }/* eat anything that's not a '*' */
+<COMMENT>"*"+[^*/\n]*   { uploc; }/* eat up '*'s not followed by '/'s */
+<COMMENT>\n             { uploc; }
+<comment>"*"+"/"        BEGIN(INITIAL);
+		 	
 "program"		{ uploc; return T_PROGRAM; }
 "function"		{ uploc; return T_FUNCTION; }
 "proc"			{ uploc; return T_PROC; }
